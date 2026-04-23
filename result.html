@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Your Photostrip</title>
+
+<style> 
+body {
+    font-family: Arial;
+    background: #f4efe6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 25px;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+/* photostrip container */
+.photo-frame {
+    position: relative;
+    width: 360px;
+    height: 520px;
+    background: white;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+/* ✅ NEW: wrapper for photos */
+.photo-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+}
+
+/* photos */
+.photo-wrapper img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+/* frame overlay */
+.frame-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+h2 {
+    margin-top: 0;
+    color: #4b4377;
+    font-family: Baskerville, "Palatino Linotype", Palatino, "Century Schoolbook L", "Times New Roman", "serif";
+}
+
+.email-section {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.email-section input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #948fbd;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.button-container {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    margin-bottom: 30px;
+    align-items: center;
+    justify-content: center;
+}
+
+button {
+    padding: 10px 20px;
+    background: #948fbd;
+    color: white;
+    border: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background: #7d7699;
+}
+
+button.home-btn {
+    background: #333;
+}
+
+button.home-btn:hover {
+    background: #555;
+}
+
+.message {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    display: none;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+    display: block;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+    display: block;
+}
+</style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+<h2>Your Photostrip</h2>
+
+<div class="photo-frame">
+
+<!-- ✅ NEW WRAPPER (replaces absolute layout) -->
+<div class="photo-wrapper">
+    <img id="photo1-display">
+    <img id="photo2-display">
+</div>
+
+<img class="frame-overlay" src="photobooth frame x2 small.PNG">
+
+</div>
+
+<div class="email-section">
+        <input type="email" id="emailInput" placeholder="Enter your email to receive photos">
+        
+<div class="button-container">
+    <button onclick="sendEmail()">Send to Email</button>
+    <button class="home-btn" onclick="goHome()">Home</button>
+</div>
+
+    <div id="message" class="message"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+<script>
+// EmailJS Configuration
+const EMAILJS_PUBLIC_KEY = "ObUc9_e6RpvpdHJyD";
+const EMAILJS_SERVICE_ID = "service_3gln22k";
+const EMAILJS_TEMPLATE_ID = "template_fi96548";
+
+// Initialize EmailJS
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+// Get DOM elements
+const photo1Display = document.getElementById("photo1-display");
+const photo2Display = document.getElementById("photo2-display");
+const messageDiv = document.getElementById("message");
+
+// Load photos from localStorage
+const photo1Data = localStorage.getItem("photo1");
+const photo2Data = localStorage.getItem("photo2");
+const photostripData = localStorage.getItem("photostrip");
+
+if (photo1Data) {
+    photo1Display.src = photo1Data;
+}
+
+if (photo2Data) {
+    photo2Display.src = photo2Data;
+}
+
+// Show message function
+function showMessage(text, type) {
+    messageDiv.innerText = text;
+    messageDiv.className = "message " + type;
+    setTimeout(function() {
+        messageDiv.className = "message";
+    }, 4000);
+}
+
+function sendEmail() {
+
+const email = document.getElementById("emailInput").value.trim();
+
+if (!email || !email.includes("@")) {
+    showMessage("Please enter a valid email", "error");
+    return;
+}
+
+const button = document.querySelector('button[onclick="sendEmail()"]');
+button.innerText = "Sending...";
+button.disabled = true;
+
+/* ✅ NEW: compress image (fix Gmail blocking) */
+const img = new Image();
+img.src = photostripData;
+
+img.onload = function () {
+
+    const tempCanvas = document.createElement("canvas");
+    const ctx = tempCanvas.getContext("2d");
+
+    const scale = 0.7; // reduce size
+    tempCanvas.width = img.width * scale;
+    tempCanvas.height = img.height * scale;
+
+    ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+
+    const compressed = tempCanvas.toDataURL("image/jpeg", 0.7);
+
+    /* ✅ FIXED: clean template params */
+    emailjs.send("service_3gln22k", "template_fi96548", {
+        user_email: email,
+        photo: compressed
+    })
+    .then(() => {
+        showMessage("Email sent successfully!", "success");
+        button.innerText = "Sent!";
+    })
+    .catch((error) => {
+        console.log(error);
+        showMessage("Failed: " + error.text, "error");
+        button.innerText = "Send to Email";
+        button.disabled = false;
+    });
+
+};
+
+}
+
+// Home function
+function goHome() {
+    window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>
